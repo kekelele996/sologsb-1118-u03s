@@ -6,18 +6,21 @@ import { trenchStore } from '@/stores/trenchStore'
 import { stratumStore } from '@/stores/stratumStore'
 import { artifactStore } from '@/stores/artifactStore'
 import { relationStore } from '@/stores/relationStore'
+import { joinGroupStore } from '@/stores/joinGroupStore'
 
 const route = useRoute()
 const trenchState = useStore(trenchStore)
 const stratumState = useStore(stratumStore)
 const artifactState = useStore(artifactStore)
 const relationState = useStore(relationStore)
+const joinState = useStore(joinGroupStore)
 
 const menus = [
   { path: '/trenches', label: '探方清单', icon: 'Grid' },
   { path: '/strata', label: '地层单位编目', icon: 'Files' },
   { path: '/artifacts', label: '出土物登记', icon: 'Box' },
   { path: '/relations', label: '层位关系', icon: 'Share' },
+  { path: '/joins', label: '器物缀合', icon: 'Connection' },
   { path: '/sections', label: '四壁剖面示意', icon: 'DataLine' }
 ]
 
@@ -27,7 +30,8 @@ const stats = computed(() => [
   { label: '探方', value: trenchState.trenches.length },
   { label: '地层单位', value: stratumState.strata.length },
   { label: '出土物', value: artifactState.artifacts.length },
-  { label: '层位关系', value: relationState.relations.length }
+  { label: '层位关系', value: relationState.relations.length },
+  { label: '缀合组', value: joinState.groups.length }
 ])
 
 onMounted(async () => {
@@ -35,6 +39,7 @@ onMounted(async () => {
   await stratumStore.getState().hydrate()
   await artifactStore.getState().hydrate()
   await relationStore.getState().hydrate()
+  await joinGroupStore.getState().hydrate()
 })
 </script>
 

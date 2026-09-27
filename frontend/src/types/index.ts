@@ -6,3 +6,13 @@ export { ARTIFACT_CATEGORIES, COMPLETENESS } from './artifact'
 export type { Artifact, ArtifactCategory, Completeness } from './artifact'
 export { RELATION_TYPES, RELATION_BASES } from './relation'
 export type { Relation, RelationType, RelationBasis } from './relation'
+export {
+  JOIN_STATUSES,
+  JOIN_BASES,
+  isGroupActive,
+  sortMembersByDepth,
+  resolveGroup,
+  occupiedArtifactMap,
+  nextJoinCode
+} from './join'
+export type { JoinGroup, JoinMember, JoinStatus, ResolvedGroup, ResolvedMember } from './join'

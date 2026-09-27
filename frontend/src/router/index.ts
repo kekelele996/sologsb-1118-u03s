@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '层位关系' }
   },
   {
+    path: '/joins',
+    name: 'joins',
+    component: () => import('@/pages/JoinsPage.vue'),
+    meta: { title: '器物缀合' }
+  },
+  {
     path: '/sections',
     name: 'sections',
     component: () => import('@/pages/SectionsPage.vue'),

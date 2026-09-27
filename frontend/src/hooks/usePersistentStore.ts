@@ -1,22 +1,23 @@
 import { onUnmounted, reactive } from 'vue'
 import type { StoreApi } from 'zustand/vanilla'
 import Dexie, { type Table } from 'dexie'
-import type { Artifact, Relation, Stratum, Trench } from '@/types'
+import type { Artifact, JoinGroup, Relation, Stratum, Trench } from '@/types'
 
 /** IndexedDB 数据结构版本号 */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export interface MetaRow {
   key: string
   value: number
 }
 
-/** Dexie 封装：探方 / 地层单位 / 出土物 / 层位关系 四张表 + 元数据表 */
+/** Dexie 封装：探方 / 地层单位 / 出土物 / 层位关系 / 器物缀合组 五张表 + 元数据表 */
 class TrenchLogDb extends Dexie {
   trenches!: Table<Trench, string>
   strata!: Table<Stratum, string>
   artifacts!: Table<Artifact, string>
   relations!: Table<Relation, string>
+  joinGroups!: Table<JoinGroup, string>
   meta!: Table<MetaRow, string>
 
   constructor() {
@@ -50,6 +51,15 @@ class TrenchLogDb extends Dexie {
             }
           })
       })
+    // v3：新增器物缀合组表（空表，无需数据迁移）
+    this.version(SCHEMA_VERSION).stores({
+      trenches: 'id, code, area, backfilled',
+      strata: 'id, trenchId, code, type, topDepth',
+      artifacts: 'id, stratumId, code, category, date',
+      relations: 'id, unitAId, unitBId, type, basis',
+      joinGroups: 'id, code, trenchId, status, createdAt',
+      meta: 'key'
+    })
   }
 }
 
@@ -208,6 +218,48 @@ export async function seedDemoData(): Promise<void> {
       date: today,
       collector: '祁野',
       tempLocation: '工地临时柜 A-3'
+    },
+    {
+      id: 'af_003',
+      stratumId: 'st_0501_l1',
+      code: 'T0501①:7',
+      category: '陶器',
+      count: 1,
+      completeness: '残片',
+      x: 2.2,
+      y: 1.6,
+      z: 0.15,
+      date: today,
+      collector: '祁野',
+      tempLocation: '工地临时柜 A-2'
+    },
+    {
+      id: 'af_004',
+      stratumId: 'st_0501_h12',
+      code: 'T0501H12:5',
+      category: '陶器',
+      count: 2,
+      completeness: '残片',
+      x: 2.8,
+      y: 2.2,
+      z: 0.9,
+      date: today,
+      collector: '祁野',
+      tempLocation: '工地临时柜 A-2'
+    },
+    {
+      id: 'af_005',
+      stratumId: 'st_0501_h12',
+      code: 'T0501H12:6',
+      category: '陶器',
+      count: 1,
+      completeness: '残片',
+      x: 3.0,
+      y: 2.9,
+      z: 1.2,
+      date: today,
+      collector: '祁野',
+      tempLocation: '工地临时柜 A-2'
     }
   ])
 
@@ -229,6 +281,86 @@ export async function seedDemoData(): Promise<void> {
       basis: '剖面观察',
       recorder: '方铭',
       note: 'L01 叠压 L02，界面清晰'
+    }
+  ])
+
+  const now = new Date().toISOString()
+
+  await db.joinGroups.bulkPut([
+    {
+      id: 'jg_001',
+      code: 'ZH-001',
+      trenchId: 'tr_0501',
+      status: '已确认',
+      basis: '茬口吻合、陶质陶色一致，可复原为同一陶罐',
+      responsible: '祁野',
+      note: '残片分属 L01、L02 与 H12，按出土深度由浅入深缀合',
+      members: [
+        {
+          artifactId: 'af_003',
+          code: 'T0501①:7',
+          category: '陶器',
+          z: 0.15,
+          stratumCode: 'L01',
+          addedAt: now,
+          missing: false
+        },
+        {
+          artifactId: 'af_001',
+          code: 'T0501②:1',
+          category: '陶器',
+          z: 0.42,
+          stratumCode: 'L02',
+          addedAt: now,
+          missing: false
+        },
+        {
+          artifactId: 'af_004',
+          code: 'T0501H12:5',
+          category: '陶器',
+          z: 0.9,
+          stratumCode: 'H12',
+          addedAt: now,
+          missing: false
+        }
+      ],
+      createdAt: now,
+      confirmedAt: now,
+      revokedAt: '',
+      revokeReason: ''
+    },
+    {
+      id: 'jg_002',
+      code: 'ZH-002',
+      trenchId: 'tr_0501',
+      status: '候选',
+      basis: '',
+      responsible: '',
+      note: '另有一片口沿残片尚未找到编目记录，补齐前暂不确认',
+      members: [
+        {
+          artifactId: 'af_005',
+          code: 'T0501H12:6',
+          category: '陶器',
+          z: 1.2,
+          stratumCode: 'H12',
+          addedAt: now,
+          missing: false
+        },
+        {
+          artifactId: '',
+          code: 'T0501H12:口沿（暂未编目）',
+          category: '陶器',
+          z: null,
+          stratumCode: 'H12',
+          addedAt: now,
+          missing: true
+        }
+      ],
+      createdAt: now,
+      confirmedAt: '',
+      revokedAt: '',
+      revokeReason: ''
     }
   ])
 }

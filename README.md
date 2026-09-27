@@ -57,11 +57,11 @@ sologsb-1118/
 │   ├── nginx.conf              # try_files 前端路由回落 + gzip
 │   ├── public/favicon.svg
 │   └── src/
-│       ├── types/              # trench.ts / stratum.ts / artifact.ts / relation.ts / index.ts
-│       ├── stores/             # trenchStore / stratumStore / artifactStore / relationStore（Zustand）
+│       ├── types/              # trench.ts / stratum.ts / artifact.ts / relation.ts / join.ts / index.ts
+│       ├── stores/             # trenchStore / stratumStore / artifactStore / relationStore / joinGroupStore（Zustand）
 │       ├── components/common/  # StratumDepthBar / RelationGraph / TrenchTag / UnitPicker
 │       ├── hooks/              # useStratumOrder / useRelationGraph / usePersistentStore
-│       ├── pages/              # TrenchesPage / StrataPage / ArtifactsPage / RelationsPage / SectionsPage
+│       ├── pages/              # TrenchesPage / StrataPage / ArtifactsPage / RelationsPage / JoinsPage / SectionsPage
 │       ├── router/index.ts
 │       └── utils/              # graph.ts / export.ts / id.ts
 ```
@@ -74,9 +74,11 @@ sologsb-1118/
 | Stratum 地层单位 | 单位号、类型（地层/灰坑/房址/沟/墓葬）、开口层位、上下界深度、土质土色、包含物、堆积成因、绘图拍照号 | `strata` |
 | Artifact 出土物 | 所属地层单位、器物编号、类别、件数、残整程度、探方内 X/Y/Z、出土日期、提取人、临时存放 | `artifacts` |
 | Relation 层位关系 | 单位 A、关系类型（叠压/打破/共存）、单位 B、判定依据、记录人、备注 | `relations` |
+| JoinGroup 器物缀合组 | 缀合组号、探方、状态（候选/已确认/已撤销）、缀合依据、责任人、成员（出土物快照 + 缺件标记）、确认/撤销时间、撤销原因 | `joinGroups` |
 
 - 数据库名 `gbtrenchlog`，`meta` 表保存 `schemaVersion`；
 - `version(2)` 升级迁移会为历史地层单位补齐「开口层位」字段并规范包含物数组；
+- `version(3)` 新增 `joinGroups` 表（空表，无需数据迁移）；
 - 数据仅存于浏览器本地，容器无状态、不挂载命名卷。
 
 ## 六、主要页面
@@ -87,6 +89,7 @@ sologsb-1118/
 | `/strata` | 地层单位编目表：按类型与深度区间筛选，层序倒置与单位号重复即时高亮，深度刻度条展示厚度 |
 | `/artifacts` | 出土物登记与清单：先锁定所属地层单位（级联选择器），带出深度区间并校验出土深度是否在该区间内 |
 | `/relations` | 层位关系视图：SVG 有向图展示叠压/打破，点击节点高亮直接关系，新增关系前做环路检测 |
+| `/joins` | 器物缀合工作台：从出土物编目组候选组，可跨地层、不能跨探方，成员按出土深度由浅入深排列；缺件阻止确认，撤销写明原因且旧记录可查 |
 | `/sections` | 四壁剖面示意：按深度刻度绘制地层条带与厚度标注，叠加出土物投影点 |
 
 ## 七、校验规则
@@ -97,3 +100,12 @@ sologsb-1118/
 - 若「A 叠压/打破 B」但 A 的上界深度大于 B，则提示层位关系与深度矛盾；
 - 新增层位关系前做**环路检测**（DFS），会形成闭合矛盾的关系直接拒绝保存；
 - 出土物的 Z（深度）必须落在其所属地层单位的深度区间内，否则给出层位核对提示。
+
+### 器物缀合规则
+
+- 候选组至少包含 **2 件在编出土物**，成员可以来自同一探方的不同地层单位（可跨地层、**不可跨探方**）；
+- 同一件器物不能同时进入两个**未撤销**的缀合组（候选/已确认均占用器物，选择器中直接禁用已占用项）；
+- 成员保存与确认时均按出土深度（Z）**从浅到深**排序；
+- 手工登记的未编目残片，或原记录已被删除/移出编目的成员，解析后标红为**缺件**：候选可保存备查，但存在缺件时**阻止确认**；
+- 确认前必须填写**缀合依据**与**责任人**；
+- 仅已确认组可**撤销**且必须写明撤销原因；撤销后旧组与全部成员记录继续保留可查，器物占用随即释放；候选组可直接删除。
