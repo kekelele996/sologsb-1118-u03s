@@ -1,22 +1,23 @@
 import { onUnmounted, reactive } from 'vue'
 import type { StoreApi } from 'zustand/vanilla'
 import Dexie, { type Table } from 'dexie'
-import type { Artifact, Relation, Stratum, Trench } from '@/types'
+import type { Artifact, RefitGroup, Relation, Stratum, Trench } from '@/types'
 
 /** IndexedDB 数据结构版本号 */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export interface MetaRow {
   key: string
   value: number
 }
 
-/** Dexie 封装：探方 / 地层单位 / 出土物 / 层位关系 四张表 + 元数据表 */
+/** Dexie 封装：探方 / 地层单位 / 出土物 / 层位关系 / 器物缀合组 五张表 + 元数据表 */
 class TrenchLogDb extends Dexie {
   trenches!: Table<Trench, string>
   strata!: Table<Stratum, string>
   artifacts!: Table<Artifact, string>
   relations!: Table<Relation, string>
+  refits!: Table<RefitGroup, string>
   meta!: Table<MetaRow, string>
 
   constructor() {
@@ -29,7 +30,7 @@ class TrenchLogDb extends Dexie {
       meta: 'key'
     })
     // v2：地层单位新增「开口层位」字段，迁移时为历史数据补齐默认值
-    this.version(SCHEMA_VERSION)
+    this.version(2)
       .stores({
         trenches: 'id, code, area, backfilled',
         strata: 'id, trenchId, code, type, topDepth',
@@ -50,6 +51,15 @@ class TrenchLogDb extends Dexie {
             }
           })
       })
+    // v3：新增「器物缀合组」表，历史表结构不变，无需迁移字段
+    this.version(SCHEMA_VERSION).stores({
+      trenches: 'id, code, area, backfilled',
+      strata: 'id, trenchId, code, type, topDepth',
+      artifacts: 'id, stratumId, code, category, date',
+      relations: 'id, unitAId, unitBId, type, basis',
+      refits: 'id, trenchId, status',
+      meta: 'key'
+    })
   }
 }
 
@@ -208,6 +218,20 @@ export async function seedDemoData(): Promise<void> {
       date: today,
       collector: '祁野',
       tempLocation: '工地临时柜 A-3'
+    },
+    {
+      id: 'af_003',
+      stratumId: 'st_0501_h12',
+      code: 'T0501H12:2',
+      category: '陶器',
+      count: 2,
+      completeness: '残片',
+      x: 2.9,
+      y: 3.3,
+      z: 1.12,
+      date: today,
+      collector: '祁野',
+      tempLocation: '工地临时柜 A-2'
     }
   ])
 
@@ -229,6 +253,26 @@ export async function seedDemoData(): Promise<void> {
       basis: '剖面观察',
       recorder: '方铭',
       note: 'L01 叠压 L02，界面清晰'
+    }
+  ])
+
+  await db.refits.bulkPut([
+    {
+      id: 'rf_001',
+      name: 'ZH-001',
+      trenchId: 'tr_0501',
+      members: [
+        { artifactId: 'af_001', code: 'T0501②:1', stratumId: 'st_0501_l2', stratumCode: 'L02', category: '陶器', z: 0.42 },
+        { artifactId: 'af_003', code: 'T0501H12:2', stratumId: 'st_0501_h12', stratumCode: 'H12', category: '陶器', z: 1.12 }
+      ],
+      basis: '',
+      owner: '',
+      note: '夹砂红陶，绳纹走向一致，疑似同一件陶罐腹片，散落于 L02 与 H12',
+      status: '候选',
+      createdAt: `${today} 09:30`,
+      confirmedAt: '',
+      revokedAt: '',
+      revokeReason: ''
     }
   ])
 }

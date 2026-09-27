@@ -70,6 +70,9 @@ body {
 .inverted-row {
   background: #fdf2f2 !important;
 }
+.missing-row {
+  background: #fdf2f2 !important;
+}
 .duplicate-row {
   background: #fff9e6 !important;
 }

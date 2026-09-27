@@ -57,11 +57,11 @@ sologsb-1118/
 │   ├── nginx.conf              # try_files 前端路由回落 + gzip
 │   ├── public/favicon.svg
 │   └── src/
-│       ├── types/              # trench.ts / stratum.ts / artifact.ts / relation.ts / index.ts
-│       ├── stores/             # trenchStore / stratumStore / artifactStore / relationStore（Zustand）
+│       ├── types/              # trench.ts / stratum.ts / artifact.ts / relation.ts / refit.ts / index.ts
+│       ├── stores/             # trenchStore / stratumStore / artifactStore / relationStore / refitStore（Zustand）
 │       ├── components/common/  # StratumDepthBar / RelationGraph / TrenchTag / UnitPicker
 │       ├── hooks/              # useStratumOrder / useRelationGraph / usePersistentStore
-│       ├── pages/              # TrenchesPage / StrataPage / ArtifactsPage / RelationsPage / SectionsPage
+│       ├── pages/              # TrenchesPage / StrataPage / ArtifactsPage / RefitsPage / RelationsPage / SectionsPage
 │       ├── router/index.ts
 │       └── utils/              # graph.ts / export.ts / id.ts
 ```
@@ -74,9 +74,12 @@ sologsb-1118/
 | Stratum 地层单位 | 单位号、类型（地层/灰坑/房址/沟/墓葬）、开口层位、上下界深度、土质土色、包含物、堆积成因、绘图拍照号 | `strata` |
 | Artifact 出土物 | 所属地层单位、器物编号、类别、件数、残整程度、探方内 X/Y/Z、出土日期、提取人、临时存放 | `artifacts` |
 | Relation 层位关系 | 单位 A、关系类型（叠压/打破/共存）、单位 B、判定依据、记录人、备注 | `relations` |
+| RefitGroup 器物缀合组 | 组编号、所属探方、成员快照（器物编号/地层单位/出土深度）、缀合依据、责任人、状态（候选/已确认/已撤销）、撤销原因、各环节时间戳 | `refits` |
 
 - 数据库名 `gbtrenchlog`，`meta` 表保存 `schemaVersion`；
 - `version(2)` 升级迁移会为历史地层单位补齐「开口层位」字段并规范包含物数组；
+- `version(3)` 新增「器物缀合组」表（历史表结构不变）；
+- 缀合组只增改不删：成员入组时留存快照，撤销走状态流转，旧组与成员记录继续可查；
 - 数据仅存于浏览器本地，容器无状态、不挂载命名卷。
 
 ## 六、主要页面
@@ -86,6 +89,7 @@ sologsb-1118/
 | `/trenches` | 探方清单：按「发掘区-探方号」校验唯一性，卡片显示单位数、出土物件数、关系数与发掘进度状态 |
 | `/strata` | 地层单位编目表：按类型与深度区间筛选，层序倒置与单位号重复即时高亮，深度刻度条展示厚度 |
 | `/artifacts` | 出土物登记与清单：先锁定所属地层单位（级联选择器），带出深度区间并校验出土深度是否在该区间内 |
+| `/refits` | 器物缀合工作台：跨地层挑选残片组成候选组，按出土深度从浅到深排列，确认需依据与责任人，缺件挡确认，撤销留痕可查 |
 | `/relations` | 层位关系视图：SVG 有向图展示叠压/打破，点击节点高亮直接关系，新增关系前做环路检测 |
 | `/sections` | 四壁剖面示意：按深度刻度绘制地层条带与厚度标注，叠加出土物投影点 |
 
@@ -96,4 +100,10 @@ sologsb-1118/
 - 上界深度大于下界深度即为**层序倒置**，编目表整行标红并在顶部汇总；
 - 若「A 叠压/打破 B」但 A 的上界深度大于 B，则提示层位关系与深度矛盾；
 - 新增层位关系前做**环路检测**（DFS），会形成闭合矛盾的关系直接拒绝保存；
-- 出土物的 Z（深度）必须落在其所属地层单位的深度区间内，否则给出层位核对提示。
+- 出土物的 Z（深度）必须落在其所属地层单位的深度区间内，否则给出层位核对提示；
+- 缀合组至少包含两件出土物，成员可跨地层单位但**不能跨探方**（保存时拒绝）；
+- 同一件出土物只能进入一个**未撤销**（候选/已确认）的缀合组，撤销后成员释放、可重新入组；
+- 缀合组内成员按出土深度从浅到深排列；
+- 确认缀合前必须填写**缀合依据**与**责任人**；
+- 成员记录不在出土物编目里即标**缺件**（整行标红、顶部汇总），存在缺件的组无法确认；
+- 撤销缀合组必须写明**撤销原因**，旧组与成员快照保留可查，组编号不可复用。

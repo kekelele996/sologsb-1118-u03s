@@ -21,6 +21,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '出土物登记' }
   },
   {
+    path: '/refits',
+    name: 'refits',
+    component: () => import('@/pages/RefitsPage.vue'),
+    meta: { title: '器物缀合' }
+  },
+  {
     path: '/relations',
     name: 'relations',
     component: () => import('@/pages/RelationsPage.vue'),
